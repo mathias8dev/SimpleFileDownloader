@@ -6,6 +6,9 @@ import kotlinx.coroutines.sync.withLock
 import java.io.RandomAccessFile
 import java.net.HttpURLConnection
 import java.net.URI
+import java.net.http.HttpRequest
+import java.time.Duration
+import java.time.temporal.TemporalUnit
 import kotlin.time.Duration.Companion.milliseconds
 
 
@@ -108,29 +111,24 @@ class ChunkDownloader(
 ) {
 
     suspend fun run() = coroutineScope {
-        try {
+        val remoteUrl = URI.create(fileURL).toURL()
+        val connection = remoteUrl.openConnection() as HttpURLConnection
+        connection.setRequestProperty("Range", "bytes=$startByte-$endByte")
+        connection.connect()
 
-            val remoteUrl = URI.create(fileURL).toURL()
-            val connection = remoteUrl.openConnection() as HttpURLConnection
-            connection.setRequestProperty("Range", "bytes=$startByte-$endByte")
-            connection.connect()
+        val input = connection.inputStream
+        val output = RandomAccessFile(fileName, "rw")
+        output.seek(startByte)
 
-            val input = connection.inputStream
-            val output = RandomAccessFile(fileName, "rw")
-            output.seek(startByte)
-
-            val buffer = ByteArray(4096)
-            var bytesRead: Int
-            while ((input.read(buffer, 0, 4096).also { bytesRead = it }) != -1) {
-                output.write(buffer, 0, bytesRead)
-                chunkProgressListener.onProgressUpdate(bytesRead, totalFileSize)
-            }
-
-            input.close()
-            output.close()
-        } catch (e: Exception) {
-            e.printStackTrace()
+        val buffer = ByteArray(4096)
+        var bytesRead: Int
+        while ((input.read(buffer, 0, 4096).also { bytesRead = it }) != -1) {
+            output.write(buffer, 0, bytesRead)
+            chunkProgressListener.onProgressUpdate(bytesRead, totalFileSize)
         }
+
+        input.close()
+        output.close()
     }
 }
 
