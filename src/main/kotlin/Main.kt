@@ -14,46 +14,50 @@ import kotlin.time.Duration.Companion.milliseconds
 
 fun main() {
     println("Hello downloader!")
-    DownloadApplication.downloadFile(
-        "https://www.learningcontainer.com/wp-content/uploads/2020/05/sample-mp4-file.mp4",
-        "sample-mp4-file.mp4",
-    )
+    runBlocking(Dispatchers.IO) {
+        launch {
+            DownloadApplication.downloadFile(
+                "https://www.learningcontainer.com/wp-content/uploads/2020/05/sample-mp4-file.mp4",
+                "sample-mp4-file.mp4",
+            )
+        }
 
-    DownloadApplication.downloadFile(
-        "http://212.183.159.230/512MB.zip",
-        "test.zip",
-    )
+        launch {
+            DownloadApplication.downloadFile(
+                "http://212.183.159.230/512MB.zip",
+                "test.zip",
+            )
+        }
+    }
 }
 
 object DownloadApplication {
 
-    fun downloadFile(fileURL: String, fileName: String) {
+    suspend fun downloadFile(fileURL: String, fileName: String) {
         val fileDownloader = FileDownloader(fileURL, fileName)
-        runBlocking(Dispatchers.IO) {
-            kotlin.runCatching {
-                val progressListener = object : ProgressListener {
-                    private val mutex = Mutex()
-                    private var totalDownloaded = 0L
+        kotlin.runCatching {
+            val progressListener = object : ProgressListener {
+                private val mutex = Mutex()
+                private var totalDownloaded = 0L
 
 
-                    override suspend fun onProgressUpdate(bytesRead: Int, fileTotalSize: Long) {
-                        mutex.withLock {
-                            totalDownloaded += bytesRead
-                            val progress = (totalDownloaded * 100 / fileTotalSize)
-                            //println("Download progress: $progress%")
-                        }
-                    }
-
-                    override suspend fun onDownloadComplete(fileSize: Long, downloadedIn: Long) {
-                        println("Completed: file $fileName downloaded in ${downloadedIn.milliseconds.inWholeSeconds} seconds")
+                override suspend fun onProgressUpdate(bytesRead: Int, fileTotalSize: Long) {
+                    mutex.withLock {
+                        totalDownloaded += bytesRead
+                        val progress = (totalDownloaded * 100 / fileTotalSize)
+                        //println("Download progress: $progress%")
                     }
                 }
 
-                fileDownloader.download(progressListener)
-
-            }.onFailure {
-                it.printStackTrace()
+                override suspend fun onDownloadComplete(fileSize: Long, downloadedIn: Long) {
+                    println("Completed: file $fileName downloaded in ${downloadedIn.milliseconds.inWholeSeconds} seconds")
+                }
             }
+
+            fileDownloader.download(progressListener)
+
+        }.onFailure {
+            it.printStackTrace()
         }
     }
 
