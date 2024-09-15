@@ -4,14 +4,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import java.io.File
 import java.net.HttpURLConnection
 import java.net.URI
 
 class FastFileDownloader(
     private val fileURL: String,
     private val outputFilePath: String,
-    private val progressListener: ProgressListener,
-    private val controller: FastFileDownloaderController
+    private val progressListener: ProgressListener? = null,
+    private val controller: FastFileDownloaderController? = null
 ) {
 
     suspend fun download() = coroutineScope {
@@ -45,8 +46,13 @@ class FastFileDownloader(
 
         deferred.awaitAll()
 
-        if (!controller.isCancelled()) {
-            progressListener.onDownloadComplete(fileSize, System.currentTimeMillis() - startTime)
+        // Check if download was cancelled
+        if (controller?.isCancelled() == true) {
+            File(outputFilePath).delete() // Delete the file if cancelled
+            println("Download cancelled. File deleted.")
+        } else {
+            // Only notify when the download completes successfully
+            progressListener?.onDownloadComplete(fileSize, System.currentTimeMillis() - startTime)
         }
     }
 

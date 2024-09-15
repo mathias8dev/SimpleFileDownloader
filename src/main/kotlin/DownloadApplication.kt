@@ -40,6 +40,7 @@ object DownloadApplication {
                 controller.pause()
                 delay(2000)
                 controller.resume()
+                controller.cancel()
             }
         }.onFailure {
             it.printStackTrace()

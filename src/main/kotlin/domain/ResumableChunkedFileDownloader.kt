@@ -13,8 +13,8 @@ class ResumableChunkedFileDownloader(
     private val startByte: Long,
     private val endByte: Long,
     private val totalFileSize: Long,
-    private val progressListener: ProgressListener,
-    private val controller: FastFileDownloaderController
+    private val progressListener: ProgressListener? = null,
+    private val controller: FastFileDownloaderController? = null
 ) {
 
     suspend fun downloadChunk() = coroutineScope {
@@ -32,16 +32,16 @@ class ResumableChunkedFileDownloader(
         var totalBytesDownloaded = startByte
 
         while (totalBytesDownloaded <= endByte && input.read(buffer).also { bytesRead = it.toLong() } != -1) {
-            if (controller.isCancelled()) break
+            if (controller?.isCancelled() == true) break
 
-            while (controller.isPaused()) {
+            while (controller?.isPaused() == true) {
                 delay(100) // Check every 100ms if the operation should resume
             }
 
             val bytesToWrite = minOf(bytesRead.toLong(), endByte - totalBytesDownloaded + 1)
             output.write(buffer, 0, bytesToWrite.toInt())
             totalBytesDownloaded += bytesToWrite
-            progressListener.onProgressUpdate(bytesRead, totalFileSize)
+            progressListener?.onProgressUpdate(bytesRead, totalFileSize)
         }
 
         input.close()
